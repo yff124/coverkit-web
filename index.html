@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coverkit web — 一句话，出齐各平台封面尺寸</title>
+<meta name="description" content="输入标题，一次生成小红书 / 公众号 / 视频号 / 抖音 / 知乎 / B站 / 微博 / YouTube / X 的封面图。纯前端，不联网，不上传。">
+<style>
+  :root{
+    --bg:#0C1322; --panel:#131C2E; --panel2:#18233A; --line:#26344F;
+    --fg:#EEF3FA; --muted:#93A3BC; --accent:#FF6B35; --ok:#4FD1A5;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  a{color:var(--accent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  header h1{font-size:24px;margin:0 0 6px;letter-spacing:.3px}
+  header p{margin:0;color:var(--muted);font-size:13.5px}
+  .badge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;
+    background:rgba(79,209,165,.12);color:var(--ok);font-size:11.5px;vertical-align:2px}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:22px;margin-top:24px;align-items:start}
+  @media (max-width:880px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+    margin:0 0 14px;font-weight:600}
+
+  label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px}
+  input[type=text],textarea,select{width:100%;background:var(--panel2);border:1px solid var(--line);
+    color:var(--fg);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;resize:vertical}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:6px}
+
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .sw{width:34px;height:34px;border-radius:8px;border:2px solid transparent;cursor:pointer;
+    position:relative;overflow:hidden}
+  .sw.on{border-color:#fff}
+  .sw i{position:absolute;left:0;right:0;bottom:0;height:9px;display:block}
+
+  button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:9px;
+    padding:10px 14px;font:inherit;font-size:14px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#1a0d05;font-weight:600}
+  button.primary:hover{filter:brightness(1.08)}
+  .btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  .item{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;display:flex;flex-direction:column;gap:10px}
+  .item canvas{width:100%;height:auto;display:block;border-radius:7px;background:#0a0f19}
+  .item .meta{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .item .name{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .item .name b{display:block;color:var(--fg);font-size:13px;font-weight:600}
+  .item button{padding:5px 10px;font-size:12.5px;white-space:nowrap}
+  footer{margin-top:34px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:16px}
+  .err{background:rgba(255,107,53,.12);border:1px solid rgba(255,107,53,.4);color:#FFC4A8;
+    padding:10px 12px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>coverkit <span class="badge">web · 纯前端</span></h1>
+    <p>输入一次标题，出齐 10 个平台的封面尺寸。不联网、不上传、不装任何东西 —— 所有绘制都在你自己的浏览器里完成。</p>
+  </header>
+
+  <div class="grid">
+    <!-- ============ 左：参数 ============ -->
+    <div class="card">
+      <h2>内容</h2>
+
+      <label for="kicker">栏目标签（可选）</label>
+      <input id="kicker" type="text" placeholder="例如：AI 落地笔记" value="AI 落地笔记">
+
+      <label for="title">主标题</label>
+      <textarea id="title" rows="3">先找那件每天都在重复的事</textarea>
+      <div class="hint">换行会被尊重；中文按标点折行，不会把标点甩到行首。</div>
+
+      <label for="subtitle">副标题（可选）</label>
+      <textarea id="subtitle" rows="2">不是先招人、也不是先买工具</textarea>
+
+      <label for="footer">底部小字（可选）</label>
+      <input id="footer" type="text" placeholder="作者 / 日期" value="杨大飞">
+
+      <h2 style="margin-top:22px">外观</h2>
+      <label>主题</label>
+      <div class="swatches" id="swatches"></div>
+
+      <div class="row" style="margin-top:14px">
+        <div>
+          <label for="style">版式</label>
+          <select id="style">
+            <option value="split">左侧色带</option>
+            <option value="gradient">纯渐变</option>
+            <option value="solid">纯色</option>
+          </select>
+        </div>
+        <div>
+          <label for="ratio">全部尺寸</label>
+          <select id="ratio"><option>默认（10 个平台）</option></select>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="dlAll">下载全部 PNG</button>
+        <button id="reset">恢复示例</button>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+
+    <!-- ============ 右：预览 ============ -->
+    <div>
+      <div class="gallery" id="gallery"></div>
+      <footer>
+        <p style="margin:0 0 6px">这是 <b>coverkit</b> 的浏览器版，与命令行版 <code>coverkit.py</code> 用同一套尺寸与配色。命令行版支持批量生成与接入脚本，见仓库根目录的 README。</p>
+        <p style="margin:0">绘制全在本机完成 —— 标题不会离开这台设备，可以断网使用。</p>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * 平台尺寸预设（与 coverkit.py 保持一致）
+ * ------------------------------------------------------------------ */
+const PLATFORMS = [
+  { key:"xiaohongshu",        w:1242, h:1656, label:"小红书 · 竖版封面", ratio:"3:4"     },
+  { key:"xiaohongshu-square", w:1080, h:1080, label:"小红书 · 方图",     ratio:"1:1"     },
+  { key:"gongzhonghao",       w:900,  h:383,  label:"公众号 · 头图",     ratio:"2.35:1"  },
+  { key:"shipinhao",          w:1080, h:1260, label:"视频号 · 竖版封面", ratio:"6:7"     },
+  { key:"douyin",             w:1080, h:1920, label:"抖音 · 竖版视频",   ratio:"9:16"    },
+  { key:"zhihu",              w:1200, h:628,  label:"知乎 · 文章封面",   ratio:"1.91:1"  },
+  { key:"bilibili",           w:1146, h:717,  label:"B站 · 视频封面",    ratio:"16:10"   },
+  { key:"weibo",              w:1200, h:675,  label:"微博 · 配图",       ratio:"16:9"    },
+  { key:"youtube",            w:1280, h:720,  label:"YouTube · 缩略图",  ratio:"16:9"    },
+  { key:"x",                  w:1600, h:900,  label:"X · 卡片",          ratio:"16:9"    },
+];
+
+/* ------------------------------------------------------------------ *
+ * 配色主题（与 coverkit.py 一致）
+ * ------------------------------------------------------------------ */
+const THEMES = {
+  midnight:{ bgTop:"#0C1322", bgBottom:"#17233C", title:"#F2F5FA", accent:"#FF6B35", muted:"#9FB0C8" },
+  paper:   { bgTop:"#F7F4EE", bgBottom:"#EDE7DB", title:"#132436", accent:"#D9552B", muted:"#6B7A8C" },
+  forest:  { bgTop:"#0E1F1A", bgBottom:"#153428", title:"#EAF3EE", accent:"#4FD1A5", muted:"#9DBFB0" },
+  sunset:  { bgTop:"#241028", bgBottom:"#4A1A3A", title:"#FFF2FA", accent:"#FF8A5B", muted:"#D8B4CC" },
+  ink:     { bgTop:"#111417", bgBottom:"#1E242B", title:"#F5F1E9", accent:"#E0B04B", muted:"#A8A296" },
+};
+
+const FONT_STACK = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC","Noto Sans SC","Heiti SC",sans-serif';
+
+/* ------------------------------------------------------------------ *
+ * 中文折行：按标点断，不把标点甩到行首
+ * ------------------------------------------------------------------ */
+// 行首禁则：这些字符不允许出现在一行的开头
+const NO_LINE_START = "，。、；：？！）】》」』〕〉”’…·ー~%‰℃,.;:?!)]}>»";
+// 行尾禁则：这些字符不允许出现在一行的末尾
+const NO_LINE_END   = "（【《「『〔〈“‘([{<«";
+
+function tokenize(text){
+  // 把连续的半角字符（英文单词/数字/URL）当一个整体，中日韩字符逐字拆
+  const out = [];
+  let buf = "";
+  for (const ch of text){
+    const isWide = /[^\x00-\xff]/.test(ch);
+    if (!isWide && !/\s/.test(ch)){ buf += ch; }
+    else {
+      if (buf){ out.push(buf); buf=""; }
+      out.push(ch);
+    }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+function wrapText(ctx, text, maxWidth){
+  const lines = [];
+  for (const para of String(text).split("\n")){
+    let line = "";
+    for (const tk of tokenize(para)){
+      const test = line + tk;
+      if (line && ctx.measureText(test).width > maxWidth){
+        lines.push(line);
+        line = tk;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+  }
+
+  // 行首禁则：标点被顶到行首时，把它拉回上一行末尾（悬挂标点，允许极轻微溢出）
+  for (let i = 1; i < lines.length; i++){
+    let guard = 0;
+    while (lines[i].length && NO_LINE_START.includes(lines[i][0]) && guard++ < 4){
+      lines[i-1] += lines[i][0];
+      lines[i] = lines[i].slice(1);
+    }
+  }
+  // 行尾禁则：开引号/开括号不能落在行尾，推到下一行
+  for (let i = 0; i < lines.length - 1; i++){
+    let guard = 0;
+    while (lines[i].length && NO_LINE_END.includes(lines[i][lines[i].length-1]) && guard++ < 4){
+      const c = lines[i][lines[i].length-1];
+      lines[i] = lines[i].slice(0,-1);
+      lines[i+1] = c + lines[i+1];
+    }
+  }
+  return lines.filter(l => l.length > 0);
+}
+
+function setFont(ctx, size, bold){
+  ctx.font = `${bold?"bold ":""}${size}px ${FONT_STACK}`;
+}
+
+/* 在给定宽高内找最大可用字号 */
+function fitFont(ctx, text, maxW, maxH, start, minSize, lineSpacing){
+  minSize = Math.max(12, Math.min(minSize, start - 2));
+  for (let size = start; size > minSize; size -= 2){
+    setFont(ctx, size, true);
+    const lines = wrapText(ctx, text, maxW);
+    if (lines.length * size * lineSpacing <= maxH) return { size, lines };
+  }
+  setFont(ctx, minSize, true);
+  return { size: minSize, lines: wrapText(ctx, text, maxW) };
+}
+
+/* ------------------------------------------------------------------ *
+ * 画一张封面
+ * ------------------------------------------------------------------ */
+function renderCover(p, opts){
+  const { w, h } = p;
+  const pal = THEMES[opts.theme];
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+
+  // 背景
+  if (opts.style === "solid"){
+    ctx.fillStyle = pal.bgBottom;
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, pal.bgTop);
+    g.addColorStop(1, pal.bgBottom);
+    ctx.fillStyle = g;
+  }
+  ctx.fillRect(0, 0, w, h);
+
+  const base = Math.min(w, h);
+  const margin = Math.round(base * 0.075);
+
+  // 左侧竖色带
+  let bandW = 0;
+  if (opts.style === "split"){
+    bandW = Math.round(w * 0.055);
+    ctx.fillStyle = pal.accent;
+    ctx.fillRect(0, 0, bandW, h);
+  }
+  const x = margin + bandW;
+  const textW = w - x - margin;
+
+  ctx.textBaseline = "top";
+
+  const kSize = Math.max(14, Math.round(base * 0.030));
+  const sSize = Math.max(16, Math.round(base * 0.040));
+
+  const kicker = (opts.kicker || "").trim();
+  const subtitle = (opts.subtitle || "").trim();
+  const footer = (opts.footer || "").trim();
+  const title = (opts.title || "").trim() || "（请填写标题）";
+
+  // 标题自适应
+  const fit = fitFont(ctx, title, textW, Math.round(h * 0.46), Math.round(base * 0.115), 20, 1.22);
+  const tStep = Math.round(fit.size * 1.22);
+
+  let kStep = 0, kLines = [];
+  if (kicker){
+    setFont(ctx, kSize, true);
+    kLines = wrapText(ctx, kicker, textW);
+    kStep = Math.round(kSize * 1.8);
+  }
+
+  let sLines = [], sStep = 0;
+  if (subtitle){
+    setFont(ctx, sSize, false);
+    sLines = wrapText(ctx, subtitle, textW);
+    sStep = Math.round(sSize * 1.5);
+  }
+
+  const gapK = kicker ? Math.round(base * 0.045) : 0;
+  const gapS = subtitle ? Math.round(base * 0.055) : 0;
+
+  const total =
+      kLines.length * kStep + gapK +
+      fit.lines.length * tStep + gapS +
+      sLines.length * sStep;
+
+  let y = Math.max(margin, Math.round((h - total) / 2));
+
+  if (kicker){
+    setFont(ctx, kSize, true);
+    ctx.fillStyle = pal.accent;
+    for (const ln of kLines){ ctx.fillText(ln, x, y); y += kStep; }
+    y += gapK;
+  }
+
+  setFont(ctx, fit.size, true);
+  ctx.fillStyle = pal.title;
+  for (const ln of fit.lines){ ctx.fillText(ln, x, y); y += tStep; }
+
+  if (subtitle){
+    y += gapS;
+    setFont(ctx, sSize, false);
+    ctx.fillStyle = pal.muted;
+    for (const ln of sLines){ ctx.fillText(ln, x, y); y += sStep; }
+  }
+
+  // 底部强调线
+  const ruleY = h - margin;
+  ctx.fillStyle = pal.accent;
+  ctx.fillRect(x, ruleY, Math.round(textW * 0.34), Math.max(3, Math.round(base / 260)));
+
+  if (footer){
+    const fSize = Math.max(12, Math.round(base * 0.024));
+    setFont(ctx, fSize, false);
+    ctx.fillStyle = pal.muted;
+    ctx.fillText(footer, x, ruleY + Math.round(base * 0.030));
+  }
+
+  return cv;
+}
+
+/* ------------------------------------------------------------------ *
+ * 界面
+ * ------------------------------------------------------------------ */
+const $ = s => document.querySelector(s);
+const gallery = $("#gallery");
+const errBox = $("#err");
+
+const state = { theme:"midnight", style:"split", kicker:"AI 落地笔记",
+                title:"先找那件每天都在重复的事", subtitle:"不是先招人、也不是先买工具", footer:"杨大飞" };
+
+// 主题色块
+const swWrap = $("#swatches");
+Object.keys(THEMES).forEach(name=>{
+  const t = THEMES[name];
+  const b = document.createElement("button");
+  b.className = "sw" + (name===state.theme ? " on" : "");
+  b.title = name;
+  b.style.background = `linear-gradient(180deg,${t.bgTop},${t.bgBottom})`;
+  b.innerHTML = `<i style="background:${t.accent}"></i>`;
+  b.onclick = ()=>{ state.theme = name;
+    [...swWrap.children].forEach(c=>c.classList.remove("on")); b.classList.add("on"); paint(); };
+  swWrap.appendChild(b);
+});
+
+// 输入绑定
+["kicker","title","subtitle","footer"].forEach(id=>{
+  const el = $("#"+id);
+  el.value = state[id];
+  el.addEventListener("input", ()=>{ state[id] = el.value; paint(); });
+});
+$("#style").addEventListener("change", e => { state.style = e.target.value; paint(); });
+
+let painted = [];
+
+function showError(msg){
+  errBox.style.display = "block";
+  errBox.textContent = msg;
+}
+function clearError(){ errBox.style.display = "none"; }
+
+function paint(){
+  clearError();
+  gallery.textContent = "";
+  painted = [];
+
+  if (!state.title.trim() && !state.subtitle.trim()){
+    showError("至少填一个标题。");
+  }
+
+  for (const p of PLATFORMS){
+    let cv;
+    try {
+      cv = renderCover(p, state);
+    } catch (e){
+      showError("渲染失败：" + e.message);
+      continue;
+    }
+    painted.push({ p, cv });
+
+    const box = document.createElement("div");
+    box.className = "item";
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `<span class="name"><b>${p.label}</b>${p.w}×${p.h} · ${p.ratio}</span>`;
+
+    const btn = document.createElement("button");
+    btn.textContent = "下载";
+    btn.onclick = ()=> saveCanvas(cv, p);
+    meta.appendChild(btn);
+
+    box.appendChild(cv);
+    box.appendChild(meta);
+    gallery.appendChild(box);
+  }
+}
+
+function saveCanvas(cv, p){
+  cv.toBlob(blob=>{
+    if (!blob){ showError("导出失败，请换一个浏览器再试。"); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cover_${p.key}_${p.w}x${p.h}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }, "PNG");
+}
+
+$("#dlAll").onclick = ()=>{
+  // 逐个触发下载；浏览器会串行弹保存，间隔一下更稳
+  painted.forEach((it, i)=> setTimeout(()=>saveCanvas(it.cv, it.p), i * 320));
+};
+
+$("#reset").onclick = ()=>{
+  Object.assign(state, { theme:"midnight", style:"split", kicker:"AI 落地笔记",
+    title:"先找那件每天都在重复的事", subtitle:"不是先招人、也不是先买工具", footer:"杨大飞" });
+  ["kicker","title","subtitle","footer"].forEach(id => { $("#"+id).value = state[id]; });
+  $("#style").value = state.style;
+  [...swWrap.children].forEach((c,i)=>c.classList.toggle("on", Object.keys(THEMES)[i]===state.theme));
+  paint();
+};
+
+paint();
+</script>
+</body>
+</html>
